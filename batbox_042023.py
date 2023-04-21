@@ -75,6 +75,11 @@ while True:
         pause_but_blink(1.0)                       # |    
         #LOL-----------------------------------------^
         precharge_relay.value  = False
+        
+        #Set the bool to TRUE to show the car has been started 
+        started_car = True
+        
+        
     elif((charge_enable.value and discharge_enable.value) !=0):
 
         ground_relay.value     = False     

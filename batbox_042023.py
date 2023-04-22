@@ -4,6 +4,7 @@ import time
 
 
 #Mike's fancy led
+#Everbody like's blinky lights
 led = digitalio.DigitalInOut(board.GP18)
 led.direction = digitalio.Direction.OUTPUT
 

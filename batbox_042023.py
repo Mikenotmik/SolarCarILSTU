@@ -9,15 +9,17 @@ led = digitalio.DigitalInOut(board.GP18)
 led.direction = digitalio.Direction.OUTPUT
 
 #Define Relays
-motor_relay     = digitalio.DigitalInOut(board.GP22)
-ground_relay    = digitalio.DigitalInOut(board.GP23)
-precharge_relay = digitalio.DigitalInOut(board.GP24)
+motor_relay      = digitalio.DigitalInOut(board.GP22)
+ground_relay     = digitalio.DigitalInOut(board.GP23)
+precharge_relay  = digitalio.DigitalInOut(board.GP24)
+motor_controller = digitalio.DigitalInOut(board.GP20)
 
 #Set Relays to be outputs
-motor_relay.direction       = digitalio.Direction.OUTPUT
-ground_relay.direction      = digitalio.Direction.OUTPUT
-precharge_relay.direction   = digitalio.Direction.OUTPUT
-
+motor_relay.direction              = digitalio.Direction.OUTPUT
+ground_relay.direction             = digitalio.Direction.OUTPUT
+precharge_relay.direction          = digitalio.Direction.OUTPUT
+motor_controller_relay.direction   = digitalio.Direction.OUTPUT
+#due to my stupidity the motor conltroller will have to go low in order to trun on the drive system, will change on the next board
 
 #Input data pins
 charge_enable       = digitalio.DigitalInOut(board.GP27)
@@ -79,6 +81,8 @@ while True:
         
         #Set the bool to TRUE to show the car has been started 
         started_car = True
+        motor_Controller = False # turns on motor controller and driver control unit 
+        
         
         
     elif((charge_enable.value and discharge_enable.value) !=0):
@@ -86,6 +90,7 @@ while True:
         ground_relay.value     = False     
         motor_relay.value      = False
         precharge_relay.value  = False
+        motor_controller.value = True #does not look right 
 
     pause_but_blink(.2)  
 

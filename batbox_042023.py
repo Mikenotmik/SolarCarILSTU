@@ -18,7 +18,7 @@ motor_controller = digitalio.DigitalInOut(board.GP20)
 motor_relay.direction              = digitalio.Direction.OUTPUT
 ground_relay.direction             = digitalio.Direction.OUTPUT
 precharge_relay.direction          = digitalio.Direction.OUTPUT
-motor_controller_relay.direction   = digitalio.Direction.OUTPUT
+motor_controller.direction   = digitalio.Direction.OUTPUT
 #due to my stupidity the motor conltroller will have to go low in order to trun on the drive system, will change on the next board
 
 #Input data pins
@@ -49,25 +49,30 @@ def pause_but_blink(sleep_time:float):
         time.sleep(0.2)
 
 #Define a flag that is TRUE if the car has been started
-started_car = False 
+started_car                = False
+
+# make sure everything is initially off to start, yes setting the motorcontroller to True is turning it off due to the way its wired
+ground_relay.value         = False
+precharge_relay.value      = False
+motor_relay.value          = False
+motor_controller.value     = True 
+
 
 
 '''
 -----------------------------------------------------
 -----------------------------------------------------
 This is where the car actually runs!
-
-
 '''
 while True:
 
     #If BMS say we are good to charge and we haven't started the car yet
-    if (charge_enable.value and discharge_enable.value) !=1 and started_car:
+    if (charge_enable.value and discharge_enable.value) !=0 and started_car != True:
         
         #Turn on the precharge relays
         ground_relay.value      = True
         precharge_relay.value   = True
-        
+        print(motor_controller.value)
         #Wait 5sec for precharge
         pause_but_blink(5.0)
                                                 
@@ -78,14 +83,16 @@ while True:
         pause_but_blink(1.0)                       # |    
         #LOL-----------------------------------------^
         precharge_relay.value  = False
+        motor_controller.value = False # turns on motor controller and driver control unit
+        print(motor_controller.value)
         
         #Set the bool to TRUE to show the car has been started 
         started_car = True
-        motor_Controller = False # turns on motor controller and driver control unit 
         
         
         
-    elif((charge_enable.value and discharge_enable.value) !=0):
+        
+    elif((charge_enable.value and discharge_enable.value) !=1):
 
         ground_relay.value     = False     
         motor_relay.value      = False
@@ -93,7 +100,3 @@ while True:
         motor_controller.value = True #does not look right 
 
     pause_but_blink(.2)  
-
-
-
-

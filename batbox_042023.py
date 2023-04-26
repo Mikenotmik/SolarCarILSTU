@@ -18,7 +18,7 @@ precharge_relay  = digitalio.DigitalInOut(board.GP24)
 motor_relay.direction              = digitalio.Direction.OUTPUT
 ground_relay.direction             = digitalio.Direction.OUTPUT
 precharge_relay.direction          = digitalio.Direction.OUTPUT
-#due to my stupidity the motor conltroller will have to go low in order to trun on the drive system, will change on the next board
+
 
 #Input data pins
 charge_enable       = digitalio.DigitalInOut(board.GP27)
@@ -50,7 +50,7 @@ def pause_but_blink(sleep_time:float):
 #Define a flag that is TRUE if the car has been started
 started_car                = False
 
-# make sure everything is initially off to start, yes setting the motorcontroller to True is turning it off due to the way its wired
+# make sure everything is initially off to start,
 ground_relay.value         = False
 precharge_relay.value      = False
 motor_relay.value          = False

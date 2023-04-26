@@ -65,35 +65,48 @@ This is where the car actually runs!
 '''
 print(kill_car.value)
 print(charge_enable.value)
-while True:
 
-    #If BMS say we are good to charge and we haven't started the car yet
+
+
+#If BMS say we are good to charge and we haven't started the car yet
+while not started_car:
     if (not charge_enable.value and not discharge_enable.value and not kill_car.value) and not started_car:
+        
         print(kill_car.value)
         #Turn on the precharge relays
         ground_relay.value      = True
         precharge_relay.value   = True
-        
+            
         #Wait 5sec for precharge
         pause_but_blink(5.0)
         motor_relay.value = True
-                                                
+                                                    
         #now turn on shane, i mean the relay <------<         # | 
-                                                   # | 
+                                                       # | 
         #wait again 1sec for saftey                  |   
         pause_but_blink(1.0)                       # |    
         #LOL-----------------------------------------^
         precharge_relay.value  = False
-        
-        
-        
+            
+            
+            
         #Set the bool to TRUE to show the car has been started 
         started_car = True
         
+        pause_but_blink(.2)
+
+
+
+
+
+
+while started_car:
+
         
         
         
-    elif((charge_enable.value or discharge_enable.value or kill_car.value) !=0):
+        
+    if((charge_enable.value or discharge_enable.value or kill_car.value) !=0):
 
         ground_relay.value     = False     
         motor_relay.value      = False
@@ -102,4 +115,4 @@ while True:
     
     
     print(charge_enable.value)
-    pause_but_blink(.2)             
+    pause_but_blink(.02)             

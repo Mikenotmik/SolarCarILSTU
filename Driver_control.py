@@ -39,7 +39,8 @@ while True:
     potPercent = pow(potPercent,1.75)
     
     if potPercent>.9:
-        potPercent = .9
+        potPercent = .9 #The controller will over shoot and over current if the value is 100 percent
+        
     if potPercent<.005:
         potPercent = 0
         

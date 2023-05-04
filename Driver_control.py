@@ -38,8 +38,8 @@ while True:
     potPercent = pot.value/63500
     potPercent = pow(potPercent,1.75)
     
-    if potPercent>1:
-        potPercent = 1
+    if potPercent>.9:
+        potPercent = .9
     if potPercent<.005:
         potPercent = 0
         

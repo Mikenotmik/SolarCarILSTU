@@ -24,6 +24,7 @@ import os
 
 
 
+
 boot_time = time.time()
 
 displayio.release_displays()
@@ -55,29 +56,7 @@ display = adafruit_displayio_ssd1305.SSD1305(display_bus, width=WIDTH, height=HE
 splash = displayio.Group()
 display.root_group = splash
 
-color_bitmap = displayio.Bitmap(display.width, display.height, 1)
-color_palette = displayio.Palette(1)
-color_palette[0] = 0xFFFFFF  # White
 
-bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
-splash.append(bg_sprite)
-
-
-
-
-# Draw a smaller inner rectangle
-
-
-
-inner_bitmap = displayio.Bitmap(
-    display.width - BORDER * 2, display.height - BORDER * 2, 1
-)
-inner_palette = displayio.Palette(1)
-inner_palette[0] = 0x000000  # Black
-inner_sprite = displayio.TileGrid(
-    inner_bitmap, pixel_shader=inner_palette, x=BORDER, y=BORDER
-)
-splash.append(inner_sprite)
 
 # Draw a label
 
@@ -140,42 +119,110 @@ def on(y):
     temp_f.value = False
     time.sleep(y)
 
-time.sleep(2)
+
+on(.15)
+on(.15)
+on(.15)
+on(.15)
+on(.15)
+on(.15)
+on(.15)
+on(.15)
 text_group.pop(-1)
+#######setting up screen
 
-
-
+voltage = 0
+current = 0
+hitemp  = 0
+lotemp  = 0
+hicell  = 0
+locell  = 0
+error   = "ISU"
 
 
 # Draw voltage/current Label
 vout = displayio.Group(scale=2, x=1, y=8)
-vtext = """V:114.6
-A:12.98"""#.format(voltage,current)
+vtext = """V:{:4.1f}
+A:{:4.1f}""".format(voltage,current)
 varea = label.Label(terminalio.FONT, text=vtext, color=0xFFFFFF)
 vout.append(varea)  # Subgroup for text scaling
 splash.append(vout)
 
-time.sleep(0.2)
+
 
 #cell label
 cout  = displayio.Group(scale=1, x=1, y=60)
-ctext = "hic:  loc:"
+ctext = "Hic:{:4.1f}  Loc:{:4.1f}".format(hicell,locell)
 carea =  label.Label(terminalio.FONT, text=ctext, color=0xFFFFFF)
 cout.append(carea)
 splash.append(cout)
 
 #temp label
 
-tout = displayio.Group(scale=1, x=90, y=6)
-ttext = """h:
-l:
-
-ISU"""
+tout = displayio.Group(scale=1, x=85, y=10)
+ttext = """H:{:4.1f}
+L:{:4.1f}
+{}""".format(hitemp,lotemp,error)
 tarea = label.Label(terminalio.FONT, text=ttext, color=0xFFFFFF)
 tout.append(tarea)
 splash.append(tout)
+on(.15)
+def update_display():
+    global varea, carea, tarea, voltage, current, hitemp, lotemp, hicell, locell, error
+
+    vtext = """V:{:4.1f}
+A:{:4.1f}""".format(voltage,current)
+    varea.text = vtext
+
+    ctext = "Hic:{:4.1f}  Loc:{:4.1f}".format(hicell,locell)
+    carea.text = ctext
+
+    ttext = """H:{:4.1f}
+L:{:4.1f}
+{}""".format(hitemp,lotemp,error)
+    tarea.text = ttext
+
+
 
 
 while True:
-    on(.05)
-    pass
+    # Simulate updating variables
+    voltage += 1
+    current -= 0.8
+    hitemp += 0.3
+    lotemp += 0.6
+    hicell += 0.5
+    locell += 0.1
+
+    if voltage >= 147:
+        voltage = 0
+        error = "voltage"
+        volt_f.value= True
+    if current <= -60:
+        current = 0
+        discharge_f.value = True
+        charge_f.value = True
+        error="yo mama"
+    if hitemp >= 100:
+        hitemp = 0
+    if lotemp >= 100:
+        lotemp = 0
+        temp_f.value = True
+    if hicell >= 100:
+        hicell = 0
+        error="<volt"
+    if locell >= 100:
+        locell = 0
+        error = "volt<"
+        volt_f.value= False
+        discharge_f.value = False
+        charge_f.value = False
+        temp_f.value = False
+        
+
+
+    update_display()
+
+ 
+
+

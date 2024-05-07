@@ -1,71 +1,90 @@
-'''
-Last Edit: 05/26/2023
-
-
-The Following code is for the driver display
-
-Please make sure to include the following in the lib folder:
-adafruit_display_text
-adafruit_mcp2515
-adafruit_ssd1325.py
-
-
-'''
-
 import board
 import busio
-import math
-import struct
-import time
 import analogio
 import digitalio
-import displayio
-import terminalio
-import adafruit_ssd1325
-from adafruit_mcp2515       import MCP2515 as CAN
-from adafruit_display_text import label
+import time
 
-# Release the displays and start the clock
-boot_time = time.monotonic()
+import struct
+import math
+from adafruit_mcp2515       import MCP2515 as CAN
+from adafruit_mcp2515.canio import RemoteTransmissionRequest, Message, Match, Timer
+import digitalio
+import board
+import busio
+import board
+import terminalio
+import displayio
+from adafruit_display_text import label
+import adafruit_displayio_ssd1305
+import board
+import busio
+import os
+
+
+
+
+
+
+boot_time = time.time()
+
 displayio.release_displays()
 
-# Create the SPI Buss
-spi = busio.SPI(board.GP2, board.GP3, board.GP4)
 
-# Set up the MCP 2515 on the SPI Bus
+
 can_cs = digitalio.DigitalInOut(board.GP9)
 can_cs.switch_to_output()
+spi = busio.SPI(board.GP2, board.GP3, board.GP4)
 mcp = CAN(spi, can_cs, baudrate = 500000, crystal_freq = 16000000, silent = False,loopback = False)
 
-# Set up the OLED on the SPI Bus
-cs = board.GP22
+cs = board.GP24
 dc = board.GP23
-reset = board.GP21
+reset = board.GP8
+display_bus = displayio.FourWire(spi, command=dc, chip_select=cs,
+                                 reset=reset, baudrate=1000000)
 WIDTH = 128
 HEIGHT = 64
 BORDER = 0
 FONTSCALE = 1
-
-display_bus = displayio.FourWire(spi, command=dc, chip_select=cs, reset=reset, baudrate=1000000)
-display = adafruit_ssd1325.SSD1325(display_bus, width=WIDTH, height=HEIGHT)
-display.brightness = 1.0
+display = adafruit_displayio_ssd1305.SSD1305(display_bus, width=WIDTH, height=HEIGHT)
 
 
 
-startTime = time.time()
 # Make the display context
+
+
+
 splash = displayio.Group()
-display.show(splash)
+display.root_group = splash
 
 color_bitmap = displayio.Bitmap(display.width, display.height, 1)
 color_palette = displayio.Palette(1)
-color_palette[0] =0x000000  # Black
+color_palette[0] = 0xFFFFFF  # White
 
 bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
 splash.append(bg_sprite)
 
+
+
+
+# Draw a smaller inner rectangle
+
+
+
+inner_bitmap = displayio.Bitmap(
+    display.width - BORDER * 2, display.height - BORDER * 2, 1
+)
+inner_palette = displayio.Palette(1)
+inner_palette[0] = 0x000000  # Black
+inner_sprite = displayio.TileGrid(
+    inner_bitmap, pixel_shader=inner_palette, x=BORDER, y=BORDER
+)
+splash.append(inner_sprite)
+
 # Draw a label
-text = "SOLAR CAR ISU"
+
+
+
+text = "you are special."
 text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
 text_width = text_area.bounding_box[2] * FONTSCALE
 text_group = displayio.Group(
@@ -73,112 +92,141 @@ text_group = displayio.Group(
     x=display.width // 2 - text_width // 2,
     y=display.height // 2,
 )
-text_group.append(text_area)  # Subgroup for text scaling
+text_group.append(text_area)
+
+
+# Subgroup for text scaling
+
+
 splash.append(text_group)
-time.sleep(2.5)
-splash.pop(-1)
+
+temp       = board.GP10
+charge     = board.GP19
+discharge  = board.GP20
+volt       = board.A3
+
+#Initialize
+
+temp_f = digitalio.DigitalInOut(temp)
+temp_f.direction = digitalio.Direction.OUTPUT
+
+charge_f = digitalio.DigitalInOut(charge)
+charge_f.direction = digitalio.Direction.OUTPUT
+
+discharge_f= digitalio.DigitalInOut(discharge)
+discharge_f.direction = digitalio.Direction.OUTPUT
+
+volt_f = digitalio.DigitalInOut(volt)
+volt_f.direction = digitalio.Direction.OUTPUT
+
+def on(y):
+    
+    volt_f.value= True
+    time.sleep(y)
+    discharge_f.value = True
+    time.sleep(y)
+    charge_f.value = True
+    time.sleep(y)
+
+    temp_f.value = True
+    time.sleep(y)
+
+    volt_f.value= False
+    time.sleep(y)
+    discharge_f.value = False
+    time.sleep(y)
+    charge_f.value = False
+    time.sleep(y)
+
+    temp_f.value = False
+    time.sleep(y)
+
+time.sleep(2)
+text_group.pop(-1)
 
 
 
-
-tire_diameter = 22
-mph     = 0
 voltage = 0
 current = 0
-eff     = 0
+hitemp  = 0
+lotemp  = 0
+hicell  = 0
+locell  = 0
+error   = "ISU"
 
-# Draw Speed/effecency Label
-text_group = displayio.Group(scale=3, x=3, y=12)
-text = "S: {:04.1f}".format(mph)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
-
-# Draw Effecency Label
-text_group = displayio.Group(scale=3, x=3, y=41)
-text = "E: {:04.1f}".format(eff)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
 
 # Draw voltage/current Label
-text_group = displayio.Group(scale=1, x=15, y=60)
-text = "V: {:04.1f}  A: {:04.1f}".format(voltage,current)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
+vout = displayio.Group(scale=2, x=1, y=8)
+vtext = """V:{:4.1f}
+A:{:4.1f}""".format(voltage,current)
+varea = label.Label(terminalio.FONT, text=vtext, color=0xFFFFFF)
+vout.append(varea)  # Subgroup for text scaling
+splash.append(vout)
 
 time.sleep(0.2)
 
+#cell label
+cout  = displayio.Group(scale=1, x=1, y=60)
+ctext = "hic:{:4.1f}  loc:{:4.1f}".format(hicell,locell)
+carea =  label.Label(terminalio.FONT, text=ctext, color=0xFFFFFF)
+cout.append(carea)
+splash.append(cout)
 
-while True:
-    with mcp.listen(timeout=0) as listener:
-        eff = (mph*1000) / (current*voltage + 0.000001) 
-        eff = 99.99 if eff > 99.9 else eff
+#temp label
 
+tout = displayio.Group(scale=1, x=90, y=6)
+ttext = """h:{:4.1f}
+l:{:4.1f}
 
-        print_string = "{:06.2f}".format(float(time.monotonic()-boot_time)) + "\t" + "{:05.1f}".format(voltage) + "\t"  + "{:05.1f}".format(current) + "\t"  + "{:05.1f}".format(mph)+"\t"+str(eff)
-        print(print_string,end='\t')
-        
+{}""".format(hitemp,lotemp,error)
+tarea = label.Label(terminalio.FONT, text=ttext, color=0xFFFFFF)
+tout.append(tarea)
+splash.append(tout)
 
+def update_display():
+    global varea, carea, tarea, voltage, current, hitemp, lotemp, hicell, locell, error
 
-        # Draw Speed Label
-        text_group = displayio.Group(scale=3, x=3, y=12)
-        text = "S: {:04.1f}".format(mph)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-3] = text_group
+    vtext = """V:{:4.1f}
+A:{:4.1f}""".format(voltage,current)
+    varea.text = vtext
 
-        # Draw Effecency Label
-        text_group = displayio.Group(scale=3, x=3, y=41)
-        text = "E: {:04.1f}".format(eff)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-2] = text_group
+    ctext = "hic:{:4.1f}  loc:{:4.1f}".format(hicell,locell)
+    carea.text = ctext
 
-        # Draw voltage/current Label
-        text_group = displayio.Group(scale=1, x=15, y=60)
-        text = "V: {:04.1f}  A: {:04.1f}".format(voltage,current)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-1] = text_group
-        
-        
+    ttext = """h:{:4.1f}
+l:{:4.1f}
 
-        
-        #Here starts where we do the CAN things
-        message_count = listener.in_waiting()
-        print(message_count,end = '\n')
-        if message_count == 0:
+{}""".format(hitemp,lotemp,error)
+    tarea.text = ttext
 
-            continue
-        
-        next_message = listener.receive()
-        message_num = 0
-
-        
-        while not next_message is None:
-        
-
-
-            message_num += 1
-
-            # Check the id to properly unpack it
-            if next_message.id == 0x402:
-
-            #unpack and print the message
-                holder = struct.unpack('<ff',next_message.data)
-                voltage = holder[0]
-                current = holder[1]
-                #print("Message From: {}: [V = {}; A = {}]".format(hex(next_message.id),voltage,current))
 
 
 
-            if next_message.id == 0x403:
-                #unpack and print the message
-                holder = struct.unpack('<ff',next_message.data)
-                rpm = holder[0]
-                mph = rpm*tire_diameter*math.pi*60*1/(12*5280)
-                #print("Message From: {}: [rpm = {}; mph = {}]".format(hex(next_message.id),rpm,mph))
+while True:
+    # Simulate updating variables
+    voltage += 1
+    current += 0.1
+    hitemp += 0.2
+    lotemp += 0.1
+    hicell += 0.5
+    locell += 0.2
 
-            next_message = listener.receive()
+    if voltage >= 200:
+        voltage = 0
+    if current >= 100:
+        current = 0
+    if hitemp >= 100:
+        hitemp = 0
+    if lotemp >= 100:
+        lotemp = 0
+    if hicell >= 100:
+        hicell = 0
+    if locell >= 100:
+        locell = 0
+
+    # Update display
+    update_display()
+
+    # Simulate a short delay
+    time.sleep(0.001)
+

@@ -97,46 +97,46 @@ discharge_f.direction = digitalio.Direction.OUTPUT
 volt_f = digitalio.DigitalInOut(volt)
 volt_f.direction = digitalio.Direction.OUTPUT
 
-def on(y):
-    
-    volt_f.value= True
-    time.sleep(y)
-    discharge_f.value = True
-    time.sleep(y)
-    charge_f.value = True
-    time.sleep(y)
 
-    temp_f.value = True
-    time.sleep(y)
+def on(howlong, howmany):
+    """Turn LEDs on sequentially (forward), then turn them off sequentially, and finally reverse the order multiple times."""
+    led_order = [volt_f, discharge_f, charge_f, temp_f]
 
-    volt_f.value= False
-    time.sleep(y)
-    discharge_f.value = False
-    time.sleep(y)
-    charge_f.value = False
-    time.sleep(y)
+    for _ in range(howmany):
+        # Forward sequence: turn on LEDs in order
+        for led in led_order:
+            led.value = True
+            time.sleep(howlong)
 
-    temp_f.value = False
-    time.sleep(y)
+        # Forward sequence: turn off LEDs in order
+        for led in led_order:
+            led.value = False
+            time.sleep(howlong)
+
+        # Reverse sequence: turn on LEDs in reverse order
+        for led in reversed(led_order):
+            led.value = True
+            time.sleep(howlong)
+
+        # Reverse sequence: turn off LEDs in reverse order
+        for led in reversed(led_order):
+            led.value = False
+            time.sleep(howlong)
 
 
-on(.15)
-on(.15)
-on(.15)
-on(.15)
-on(.15)
-on(.15)
-on(.15)
-on(.15)
+on(.05,4)
+
+
+
 text_group.pop(-1)
 #######setting up screen
 
-voltage = 0
+voltage = 100
 current = 0
-hitemp  = 0
-lotemp  = 0
-hicell  = 0
-locell  = 0
+hitemp  = 25
+lotemp  = 25
+hicell  = 3
+locell  = 3
 error   = "ISU"
 
 
@@ -166,7 +166,16 @@ L:{:4.1f}
 tarea = label.Label(terminalio.FONT, text=ttext, color=0xFFFFFF)
 tout.append(tarea)
 splash.append(tout)
-on(.15)
+
+
+
+on(.05,4)
+
+
+
+
+
+
 def update_display():
     global varea, carea, tarea, voltage, current, hitemp, lotemp, hicell, locell, error
 
@@ -188,36 +197,54 @@ L:{:4.1f}
 while True:
     # Simulate updating variables
     voltage += 1
-    current -= 0.8
+    current += 1
     hitemp += 0.3
-    lotemp += 0.6
-    hicell += 0.5
-    locell += 0.1
-
-    if voltage >= 147:
-        voltage = 0
-        error = "voltage"
+    lotemp -= 0.6
+    hicell += 0.05
+    locell -= 0.01
+    
+    
+    
+    # Voltage faults
+    if voltage >= 126 or voltage <=80:
+        voltage = 100
+        error = "PACKV"
         volt_f.value= True
+    
+    if hicell >= 4.19:
+        hicell = 3.
+        error="hicell"
+        volt_f.value= True
+    
+    if locell <= 2.6:
+        locell = 3.
+        error = "locell"
+        volt_f.value= True
+      
+    
+    #Current faults
     if current <= -60:
         current = 0
-        discharge_f.value = True
         charge_f.value = True
-        error="yo mama"
-    if hitemp >= 100:
+        error="charge"
+    
+    
+    if current >= 60:
+        current = 0
+        charge_f.value = True
+        error="discharge"
+    
+    
+    
+    if hitemp >= 60:
         hitemp = 0
-    if lotemp >= 100:
+        temp_f.value = True
+    
+    if lotemp <= 10:
         lotemp = 0
         temp_f.value = True
-    if hicell >= 100:
-        hicell = 0
-        error="<volt"
-    if locell >= 100:
-        locell = 0
-        error = "volt<"
-        volt_f.value= False
-        discharge_f.value = False
-        charge_f.value = False
-        temp_f.value = False
+    
+    
         
 
 

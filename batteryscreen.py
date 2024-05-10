@@ -127,7 +127,7 @@ def on(howlong, howmany):
 
 on(.05,1)
 
-
+yeah = 0
 
 text_group.pop(-1)
 #######setting up screen
@@ -257,9 +257,12 @@ while True:
             if lotemp <= 10:
         
                 temp_f.value = True
-            update_display()
+            if yeah >=20:
+                
+                update_display()
+                yeah = 0
             
-            
+            yeah +=1
             message_count = listener.in_waiting()
             print("Message Count: "+ str(message_count))
             message_num += 1
@@ -320,7 +323,7 @@ while True:
                 
                 print(hicell,locell,avgCell,highCellVid,lowCellVid)
                 
-            time.sleep(.01)
+            
             # Read another message why not... if no messages are avaliable None is returned
             
             next_message = listener.receive()

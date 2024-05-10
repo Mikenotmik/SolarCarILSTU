@@ -31,6 +31,7 @@ displayio.release_displays()
 
 
 
+
 can_cs = digitalio.DigitalInOut(board.GP9)
 can_cs.switch_to_output()
 spi = busio.SPI(board.GP2, board.GP3, board.GP4)
@@ -124,7 +125,7 @@ def on(howlong, howmany):
             time.sleep(howlong)
 
 
-on(.05,4)
+on(.05,1)
 
 
 
@@ -193,63 +194,133 @@ L:{:4.1f}
 
 
 
-
-while True:
-    # Simulate updating variables
-    voltage += 1
-    current += 1
-    hitemp += 0.3
-    lotemp -= 0.6
-    hicell += 0.05
-    locell -= 0.01
-    
-    
-    
-    # Voltage faults
-    if voltage >= 126 or voltage <=80:
-        voltage = 100
-        error = "PACKV"
-        volt_f.value= True
-    
-    if hicell >= 4.19:
-        hicell = 3.
-        error="hicell"
-        volt_f.value= True
-    
-    if locell <= 2.6:
-        locell = 3.
-        error = "locell"
-        volt_f.value= True
-      
-    
-    #Current faults
-    if current <= -60:
-        current = 0
-        charge_f.value = True
-        error="charge"
-    
-    
-    if current >= 60:
-        current = 0
-        charge_f.value = True
-        error="discharge"
-    
-    
-    
-    if hitemp >= 60:
-        hitemp = 0
-        temp_f.value = True
-    
-    if lotemp <= 10:
-        lotemp = 0
-        temp_f.value = True
-    
-    
-        
-
-
-    update_display()
-
+            
+       
  
 
+    # print occationally to show we're alive
+    #011010110000
+    
+    #matches = [Match(0x600,mask = 0xFF0)]
+while True:
+    with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
+        message_count = listener.in_waiting()
+        print("Message Count: " + str(message_count))
 
+        if message_count == 0:
+            continue
+
+        next_message = listener.receive()
+        message_num = 0
+
+        while not next_message is None:
+            # Handle message processing here
+
+            # Read another message
+            next_message = listener.receive()
+
+
+                        # Voltage faults
+            if voltage >= 126 or voltage <=80:
+                error = "PACKV"
+                volt_f.value= True
+            
+            if hicell >= 4.19:
+
+                error="hicell"
+                volt_f.value= True
+            
+            if locell <= 2.6:
+
+                error = "locell"
+                volt_f.value= True
+              
+            
+            #Current faults
+            if current <= -60:
+            
+                charge_f.value = True
+                error="charge"
+            
+            
+            if current >= 60:
+            
+                charge_f.value = True
+                error="discharge"
+            
+            
+            
+            if hitemp >= 60:
+                
+                temp_f.value = True
+            
+            if lotemp <= 10:
+        
+                temp_f.value = True
+            update_display()
+            
+            
+            message_count = listener.in_waiting()
+            print("Message Count: "+ str(message_count))
+            message_num += 1
+            
+    
+                            
+    
+            # Check the id to properly unpack it
+            if next_message.id == 0x6b0:
+                print("BMS Data")
+            #unpack and print the message
+                holder = struct.unpack('>hhhh',next_message.data)
+                current = holder[1]*.001
+                voltage = holder[3]*.01
+                
+                  
+                    
+                #
+                print(current,voltage)
+            
+               
+            
+            
+            if next_message.id == 0x6b1:
+                print("temps")
+                
+                #logTime = time()
+                #unpack and print the message
+                holder = struct.unpack('>hhhxx',next_message.data)
+                lotemp = holder[0]
+                hitemp = holder[1]
+                avgTemp = holder[2]
+                
+                             
+                #
+                print(lotemp,hitemp,avgTemp)
+            
+            
+                
+                
+            
+            
+                  
+            if next_message.id == 0x6b2:
+
+            #unpack and print the message
+                print("volt data")
+                holder = struct.unpack('>HHHBB',next_message.data)
+                hicell = holder[0]*.0001
+                locell = holder[1]*.0001
+                avgCell = holder[2]*.0001
+                highCellVid = holder[3]
+                lowCellVid = holder[4]
+                
+              
+                
+            
+                
+                print(hicell,locell,avgCell,highCellVid,lowCellVid)
+                
+            time.sleep(.01)
+            # Read another message why not... if no messages are avaliable None is returned
+            
+            next_message = listener.receive()

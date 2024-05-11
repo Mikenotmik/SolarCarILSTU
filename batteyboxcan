@@ -4,6 +4,18 @@ import time
 from adafruit_mcp2515       import MCP2515 as CAN
 from adafruit_mcp2515.canio import RemoteTransmissionRequest, Message, Match, Timer
 import digitalio
+import busio
+import struct
+
+
+voltage = 100
+current = 0
+hitemp  = 25
+lotemp  = 25
+hicell  = 3
+locell  = 3
+error   = "ISU"
+
 
 can_cs = digitalio.DigitalInOut(board.GP9)
 can_cs.switch_to_output()
@@ -16,9 +28,9 @@ led = digitalio.DigitalInOut(board.GP18)
 led.direction = digitalio.Direction.OUTPUT
 
 #Define Relays
-motor_relay      = digitalio.DigitalInOut(board.GP22)
-ground_relay     = digitalio.DigitalInOut(board.GP23)
-precharge_relay  = digitalio.DigitalInOut(board.GP24)
+motor_relay      = digitalio.DigitalInOut(board.GP20)
+ground_relay     = digitalio.DigitalInOut(board.GP10)
+precharge_relay  = digitalio.DigitalInOut(board.GP19)
 
 strobe           = digitalio.DigitalInOut(board.GP25)
 #Set Relays to be outputs
@@ -35,9 +47,9 @@ def pause_but_blink(sleep_time:float):
         led.value = not led.value
         time.sleep(0.2)
 
-started = True
+started = False
 yeah = 0
-ok = true
+ok = True
 while not started:
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
         message_count = listener.in_waiting()
@@ -50,13 +62,16 @@ while not started:
         message_num = 0
 
         while not next_message is None and  not started:
+            
             # Handle message processing here
 
             # Read another message
             next_message = listener.receive()
-             message_count = listener.in_waiting()
+            message_count = listener.in_waiting()
             print("Message Count: "+ str(message_count))
             message_num += 1
+            
+            print(f"{ok}herrrrrrrrreeeeeeeee")
             
     
                             
@@ -67,7 +82,7 @@ while not started:
                 print("BMS Data")
             #unpack and print the message
                 holder = struct.unpack('>hhhh',next_message.data)
-                current = holder[1]*.001
+                current = holder[1]*.1
                 voltage = holder[3]*.01
                 
                   
@@ -127,20 +142,18 @@ while not started:
             if locell <= 2.6:
                 ok = False
             #Current faults
-            if current <= -60 or current >= 60:
+            if current <= -50 or current >= 60:
                 ok = False
             if hitemp >= 60:
                 ok = False
             if lotemp <= 10:
                 ok = False
-            if yeah >=20:
-                ok = False
+        
             
 
  
-            if ok and yeah >=20 not started_car:
-                
-                print(kill_car.value)
+            if ok and yeah >=10 and not started:
+            
                 #Turn on the precharge relays
                 ground_relay.value      = True
                 precharge_relay.value   = True
@@ -178,12 +191,12 @@ while started:
         next_message = listener.receive()
         message_num = 0
 
-        while not next_message is None and started:
+        while not next_message is None:
             # Handle message processing here
 
             # Read another message
             next_message = listener.receive()
-             message_count = listener.in_waiting()
+            message_count = listener.in_waiting()
             print("Message Count: "+ str(message_count))
             message_num += 1
             
@@ -196,7 +209,7 @@ while started:
                 print("BMS Data")
             #unpack and print the message
                 holder = struct.unpack('>hhhh',next_message.data)
-                current = holder[1]*.001
+                current = holder[1]*.1
                 voltage = holder[3]*.01
                 
                   
@@ -255,14 +268,13 @@ while started:
             if locell <= 2.6:
                 ok = False
             #Current faults
-            if current <= -60 or current >= 60:
+            if current <= -50 or current >= 60:
                 ok = False
             if hitemp >= 60:
                 ok = False
             if lotemp <= 10:
                 ok = False
-            if yeah >=20:
-                ok = False
+            
             
 
  
@@ -273,6 +285,6 @@ while started:
                 precharge_relay.value  = False
                 while True:
                     pause_but_blink(.75)
-                    strobe.toggle()
+                    strobe.value = not strobe.value
                     
                

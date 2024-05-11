@@ -3,61 +3,12 @@ import digitalio
 import time
 from adafruit_mcp2515       import MCP2515 as CAN
 from adafruit_mcp2515.canio import RemoteTransmissionRequest, Message, Match, Timer
-import struct
+import digitalio
 
-
-voltage = 100
-current = 0
-hitemp  = 25
-lotemp  = 25
-hicell  = 3
-locell  = 3
-error   = "ISU"
-ok = True
-
-
-
-
-def process_message(message, voltage, current, hicell, locell, hitemp, lotemp):
-    """Process CAN messages and update variables."""
-    if message.id == 0x6b0:
-        holder = struct.unpack('>hhhh', message.data)
-        current = holder[1] * 0.001
-        voltage = holder[3] * 0.01
-    elif message.id == 0x6b1:
-        holder = struct.unpack('>hhhxx', message.data)
-        lotemp = holder[0]
-        hitemp = holder[1]
-    elif message.id == 0x6b2:
-        holder = struct.unpack('>HHHBB', message.data)
-        hicell = holder[0] * 0.0001
-        locell = holder[1] * 0.0001
-    return voltage, current, hicell, locell, hitemp, lotemp
-
-def check_faults(voltage, current, hicell, locell, hitemp, lotemp):
-    """Check for voltage, current, and temperature faults."""
-    if voltage >= 126 or voltage <= 80:
-        ok = False
-
-    if hicell >= 4.199:
-        ok = False
-
-    if locell <= 2.6:
-        ok = False
-
-    if current <= -50 or current >= 60:
-        ok = False
-
-    if hitemp >= 45 or lotemp <= 10:
-        ok = False
-    return ok
- 
-#setting up can 
 can_cs = digitalio.DigitalInOut(board.GP9)
 can_cs.switch_to_output()
 spi = busio.SPI(board.GP2, board.GP3, board.GP4)
 mcp = CAN(spi, can_cs, baudrate = 500000, crystal_freq = 16000000, silent = False,loopback = False)
-
 
 #Mike's fancy led
 #Everbody like's blinky lights
@@ -76,26 +27,7 @@ ground_relay.direction             = digitalio.Direction.OUTPUT
 precharge_relay.direction          = digitalio.Direction.OUTPUT
 
 strobe.direction                   = digitalio.Direction.OUTPUT
-#Input data pins
-charge_enable       = digitalio.DigitalInOut(board.GP10) 
-discharge_enable    = digitalio.DigitalInOut(board.A3)
-kill_car            = digitalio.DigitalInOut(board.GP19)
-charge_car          = digitalio.DigitalInOut(board.GP10) #also the on/aff switch
 
-#Set input data pins to be 
-charge_enable.switch_to_input(      pull=digitalio.Pull.DOWN)
-discharge_enable.switch_to_input(   pull=digitalio.Pull.DOWN)
-kill_car.switch_to_input(           pull=digitalio.Pull.DOWN)
-charge_car.switch_to_input(         pull=digitalio.Pull.DOWN)
-
-#Why is this here? well idk but it's in the doccumentation  https://docs.circuitpython.org/en/latest/shared-bindings/digitalio/index.html#digitalio.DigitalInOut.switch_to_input
-charge_enable.pull      = digitalio.Pull.DOWN 
-discharge_enable.pull   = digitalio.Pull.DOWN
-kill_car.pull           = digitalio.Pull.DOWN
-charge_car.pull         = digitalio.Pull.DOWN #also the  on/off switch
-
-#A silly function that is essentally a phat pause
-#But it makes an led blink at 5Hz ;) 
 def pause_but_blink(sleep_time:float):
     global led      
     sTime = time.time()
@@ -103,29 +35,9 @@ def pause_but_blink(sleep_time:float):
         led.value = not led.value
         time.sleep(0.2)
 
-#Define a flag that is TRUE if the car has been started
-started                    = False
-ok                         = True
-
-# make sure everything is initially off to start,
-ground_relay.value         = False
-precharge_relay.value      = False
-motor_relay.value          = False
- 
-
-
-
-'''
------------------------------------------------------
------------------------------------------------------
-This is where the car actually runs!
-'''
-print(kill_car.value)
-print(charge_enable.value)
-
-
-
-#If BMS say we are good to charge and we haven't started the car yet
+started = True
+yeah = 0
+ok = true
 while not started:
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
         message_count = listener.in_waiting()
@@ -136,11 +48,97 @@ while not started:
 
         next_message = listener.receive()
         message_num = 0
-        while next_message is not None:
-            voltage, current, hicell, locell, hitemp, lotemp = process_message(next_message, voltage, current, hicell, locell, hitemp, lotemp)
-            ok = check_faults(voltage, current, hicell, locell, hitemp, lotemp)
-         
-            if ok and not started_car:
+
+        while not next_message is None and  not started:
+            # Handle message processing here
+
+            # Read another message
+            next_message = listener.receive()
+             message_count = listener.in_waiting()
+            print("Message Count: "+ str(message_count))
+            message_num += 1
+            
+    
+                            
+    
+            # Check the id to properly unpack it
+            if next_message.id == 0x6b0:
+                
+                print("BMS Data")
+            #unpack and print the message
+                holder = struct.unpack('>hhhh',next_message.data)
+                current = holder[1]*.001
+                voltage = holder[3]*.01
+                
+                  
+                    
+                #
+                print(current,voltage)
+            
+               
+            
+            
+            if next_message.id == 0x6b1:
+                print("temps")
+                
+                #logTime = time()
+                #unpack and print the message
+                holder = struct.unpack('>hhhxx',next_message.data)
+                lotemp = holder[0]
+                hitemp = holder[1]
+                avgTemp = holder[2]
+                
+                             
+                #
+                print(lotemp,hitemp,avgTemp)
+            
+            
+                
+                
+            
+            
+                  
+            if next_message.id == 0x6b2:
+
+            #unpack and print the message
+                print("volt data")
+                holder = struct.unpack('>HHHBB',next_message.data)
+                hicell = holder[0]*.0001
+                locell = holder[1]*.0001
+                avgCell = holder[2]*.0001
+                highCellVid = holder[3]
+                lowCellVid = holder[4]
+                
+              
+                
+            
+                
+                print(hicell,locell,avgCell,highCellVid,lowCellVid)
+                
+            
+            # Read another message why not... if no messages are avaliable None is returned
+            
+            next_message = listener.receive()
+            yeah += 1
+            if voltage >= 126 or voltage <=80:
+                ok = False
+            if hicell >= 4.19:
+                ok = False
+            if locell <= 2.6:
+                ok = False
+            #Current faults
+            if current <= -60 or current >= 60:
+                ok = False
+            if hitemp >= 60:
+                ok = False
+            if lotemp <= 10:
+                ok = False
+            if yeah >=20:
+                ok = False
+            
+
+ 
+            if ok and yeah >=20 not started_car:
                 
                 print(kill_car.value)
                 #Turn on the precharge relays
@@ -151,26 +149,24 @@ while not started:
                 pause_but_blink(5.0)
                 motor_relay.value = True
                                                             
-                #now turn on shane, i mean the relay <------<
-                                                           # | 
-                                                           # | 
+                #now turn on shane, i mean the relay <------<         # | 
+                                                               # | 
                 #wait again 1sec for saftey                  |   
-                pause_but_blink(0.5)                       # |    
+                pause_but_blink(1.0)                       # |    
                 #LOL-----------------------------------------^
                 precharge_relay.value  = False
                     
                     
                     
                 #Set the bool to TRUE to show the car has been started 
-                started= True
+                started = True
+                yeah = 0
+                pause_but_blink(.2)
                 
-            pause_but_blink(.01)
-
-
-
-
-
-
+            
+            
+            
+            
 while started:
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
         message_count = listener.in_waiting()
@@ -181,19 +177,102 @@ while started:
 
         next_message = listener.receive()
         message_num = 0
-        while next_message is not None:
 
-        
-        
-        
-            voltage, current, hicell, locell, hitemp, lotemp = process_message(next_message, voltage, current, hicell, locell, hitemp, lotemp)
-            ok = check_faults(voltage, current, hicell, locell, hitemp, lotemp)    
-            if not ok :
+        while not next_message is None and started:
+            # Handle message processing here
 
+            # Read another message
+            next_message = listener.receive()
+             message_count = listener.in_waiting()
+            print("Message Count: "+ str(message_count))
+            message_num += 1
+            
+    
+                            
+    
+            # Check the id to properly unpack it
+            if next_message.id == 0x6b0:
+                
+                print("BMS Data")
+            #unpack and print the message
+                holder = struct.unpack('>hhhh',next_message.data)
+                current = holder[1]*.001
+                voltage = holder[3]*.01
+                
+                  
+                    
+                #
+                print(current,voltage)
+            
+               
+            
+            
+            if next_message.id == 0x6b1:
+                print("temps")
+                
+                #logTime = time()
+                #unpack and print the message
+                holder = struct.unpack('>hhhxx',next_message.data)
+                lotemp = holder[0]
+                hitemp = holder[1]
+                avgTemp = holder[2]
+                
+                             
+                #
+                print(lotemp,hitemp,avgTemp)
+            
+            
+                
+                
+            
+            
+                  
+            if next_message.id == 0x6b2:
+
+            #unpack and print the message
+                print("volt data")
+                holder = struct.unpack('>HHHBB',next_message.data)
+                hicell = holder[0]*.0001
+                locell = holder[1]*.0001
+                avgCell = holder[2]*.0001
+                highCellVid = holder[3]
+                lowCellVid = holder[4]
+                
+              
+                
+            
+                
+                print(hicell,locell,avgCell,highCellVid,lowCellVid)
+                
+            
+            # Read another message why not... if no messages are avaliable None is returned
+            
+            next_message = listener.receive()
+            if voltage >= 126 or voltage <=80:
+                ok = False
+            if hicell >= 4.19:
+                ok = False
+            if locell <= 2.6:
+                ok = False
+            #Current faults
+            if current <= -60 or current >= 60:
+                ok = False
+            if hitemp >= 60:
+                ok = False
+            if lotemp <= 10:
+                ok = False
+            if yeah >=20:
+                ok = False
+            
+
+ 
+            if not ok:
+                
                 ground_relay.value     = False     
                 motor_relay.value      = False
                 precharge_relay.value  = False
-
-            pause_but_blink(.01)
-    
-
+                while True:
+                    pause_but_blink(.75)
+                    strobe.toggle()
+                    
+               

@@ -1,168 +1,133 @@
 import board
 import busio
-import math
+from analogio import AnalogIn
+from time import sleep
 import struct
-import time
-import analogio
 import digitalio
-import displayio
-import terminalio
-import adafruit_ssd1325
 from adafruit_mcp2515       import MCP2515 as CAN
-from adafruit_display_text import label
+from adafruit_mcp2515.canio import RemoteTransmissionRequest, Message, Match, Timer
+import math
+import time
 
-# Release the displays and start the clock
-boot_time = time.monotonic()
-displayio.release_displays()
 
-# Create the SPI Buss
+# Initalize the SPI bus on the RP2040
+# NOTE: Theses pins constant for all CAN-Pico Boards... DO NOT TOUCH
+cs = digitalio.DigitalInOut(board.GP9)
+cs.switch_to_output()
 spi = busio.SPI(board.GP2, board.GP3, board.GP4)
 
-# Set up the MCP 2515 on the SPI Bus
-can_cs = digitalio.DigitalInOut(board.GP9)
-can_cs.switch_to_output()
-mcp = CAN(spi, can_cs, baudrate = 500000, crystal_freq = 16000000, silent = False,loopback = False)
+#digital reverse init
+reverse = digitalio.DigitalInOut(board.GP20)
+reverse.pull= digitalio.Pull.UP
 
-# Set up the OLED on the SPI Bus
-cs = board.GP22
-dc = board.GP23
-reset = board.GP21
-WIDTH = 128
-HEIGHT = 64
-BORDER = 0
-FONTSCALE = 1
+#Maximum RPM value
+omega =0
 
-display_bus = displayio.FourWire(spi, command=dc, chip_select=cs, reset=reset, baudrate=1000000)
-display = adafruit_ssd1325.SSD1325(display_bus, width=WIDTH, height=HEIGHT)
-display.brightness = 1.0
+#digital forward init
+forward = digitalio.DigitalInOut(board.GP19)
+forward.pull = digitalio.Pull.UP
+
+#digital regen init
+regen = digitalio.DigitalInOut(board.GP7)
+regen.pull= digitalio.Pull.UP
 
 
+pedal = digitalio.DigitalInOut(board.GP25)
+pedal.direction              = digitalio.Direction.OUTPUT
+#Analog value from the pedal
+pot = AnalogIn(board.A0)
+potPercent = 0
 
-startTime = time.time()
-# Make the display context
-splash = displayio.Group()
-display.show(splash)
+#The node id we are sending to the Motor Controller
+NODE_ID = 0x501
 
-color_bitmap = displayio.Bitmap(display.width, display.height, 1)
-color_palette = displayio.Palette(1)
-color_palette[0] =0x000000  # Black
-
-bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
-splash.append(bg_sprite)
-
-# Draw a label
-text = "SOLAR CAR ISU"
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_width = text_area.bounding_box[2] * FONTSCALE
-text_group = displayio.Group(
-    scale=FONTSCALE,
-    x=display.width // 2 - text_width // 2,
-    y=display.height // 2,
-)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
-time.sleep(2.5)
-splash.pop(-1)
+#Initialize the CAN object, baudrate 500k, cpu clock
+mcp = CAN(spi, cs, baudrate = 500000, crystal_freq = 16000000, silent = False)
 
 
-
-
+t = Timer(timeout=5)
+next_message = None
+message_num = 0
 tire_diameter = 22
-mph     = 0
-voltage = 0
-current = 0
-eff     = 0
-
-# Draw Speed/effecency Label
-text_group = displayio.Group(scale=3, x=3, y=12)
-text = "S: {:04.1f}".format(mph)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
-
-# Draw Effecency Label
-text_group = displayio.Group(scale=3, x=3, y=41)
-text = "E: {:04.1f}".format(eff)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
-
-# Draw voltage/current Label
-text_group = displayio.Group(scale=1, x=15, y=60)
-text = "V: {:04.1f}  A: {:04.1f}".format(voltage,current)
-text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-text_group.append(text_area)  # Subgroup for text scaling
-splash.append(text_group)
-
-time.sleep(0.2)
+last_send = time.monotonic_ns()
+pot_sum = 0
+sample_count = 0
+pedal.value = True
+start_time = time.monotonic()
 
 
 while True:
-    with mcp.listen(timeout=0) as listener:
-        eff = (mph*1000) / (current*voltage + 0.000001) 
-        eff = 99.99 if eff > 99.9 else eff
+    
+    
+    
+   #grab pot value
+    potPercent = (pot.value/63500)
+    if potPercent < .05 :
+        potPercent = 0
+    
+    pot_sum += potPercent
+    sample_count += 1
+    
+    if time.monotonic()-start_time >= 0.15:
+        this =pot_sum/sample_count
+        #model function to describe acceleration
+        thrust = (pow(this,1.75))*.9
+        thrust = round(thrust,3)
+        if thrust <=.01:
+            thrust = 0
+       
+        print(f"pot {potPercent}")
+           
+        #reverse selected   
+        if not reverse.value :
+            print(reverse)
+            alpha= thrust
+            omega= - 1000
 
 
-        print_string = "{:06.2f}".format(float(time.monotonic()-boot_time)) + "\t" + "{:05.1f}".format(voltage) + "\t"  + "{:05.1f}".format(current) + "\t"  + "{:05.1f}".format(mph)+"\t"+str(eff)
-        print(print_string,end='\t')
+        #forward selected
+        if not forward.value:
+            omega = 1000
+            alpha=thrust
+            print("forward")
+
+        #regen selected
+        if not regen.value :
+            alpha = thrust*.40
+            omega = 0
+
+        #neutral select
+        if  forward.value and  reverse.value:
+            alpha = 0
+            omega = 0
+           
+        print(f"thrust {thrust}")
+        print (omega)
+        pot_sum = 0
+        sample_count = 0
+       
+    
+
+        #Constructor for the Message object(packing two floats(%,maxrpm))
+        message = Message(id=0x501, data=struct.pack('<ff',omega,alpha), extended=False)
+        
+        #wait a little bit until you send another message
+        while time.monotonic_ns() - last_send < 100000000:
+            pass
+            
+
+        #send the message
+        send_success = mcp.send(message)
 
 
-
-        # Draw Speed Label
-        text_group = displayio.Group(scale=3, x=3, y=12)
-        text = "S: {:04.1f}".format(mph)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-3] = text_group
-
-        # Draw Effecency Label
-        text_group = displayio.Group(scale=3, x=3, y=41)
-        text = "E: {:04.1f}".format(eff)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-2] = text_group
-
-        # Draw voltage/current Label
-        text_group = displayio.Group(scale=1, x=15, y=60)
-        text = "V: {:04.1f}  A: {:04.1f}".format(voltage,current)
-        text_area = label.Label(terminalio.FONT, text=text, color=0xFFFFFF)
-        text_group.append(text_area)  # Subgroup for text scaling
-        splash[-1] = text_group
-
-
-
-
-        #Here starts where we do the CAN things
-        message_count = listener.in_waiting()
-        print(message_count,end = '\n')
-        if message_count == 0:
-
-            continue
-
-        next_message = listener.receive()
-        message_num = 0
+        print("message sent after {}s".format((time.monotonic_ns()-last_send)*10**-9))
+        print(send_success)
+        
+        last_send = time.monotonic_ns()
+        start_time = time.monotonic()
 
         
-        while not next_message is None:
-        
-
-            message_num += 1
-
-            # Check the id to properly unpack it
-            if next_message.id == 0x402:
-
-            #unpack and print the message
-                holder = struct.unpack('<ff',next_message.data)
-                voltage = holder[0]
-                current = holder[1]
-                #print("Message From: {}: [V = {}; A = {}]".format(hex(next_message.id),voltage,current))
-
-
-            if next_message.id == 0x403:
-                #unpack and print the message
-                holder = struct.unpack('<ff',next_message.data)
-                rpm = holder[0]
-                mph = rpm*tire_diameter*math.pi*60*1/(12*5280)
-                #print("Message From: {}: [rpm = {}; mph = {}]".format(hex(next_message.id),rpm,mph))
-
-            next_message = listener.receive(
+       
+       
+       
+     

@@ -29,8 +29,8 @@ led.direction = digitalio.Direction.OUTPUT
 
 #Define Relays
 motor_relay      = digitalio.DigitalInOut(board.GP20)
-ground_relay     = digitalio.DigitalInOut(board.GP10)
-precharge_relay  = digitalio.DigitalInOut(board.GP19)
+ground_relay     = digitalio.DigitalInOut(board.GP19)
+precharge_relay  = digitalio.DigitalInOut(board.GP10)
 
 strobe           = digitalio.DigitalInOut(board.GP25)
 #Set Relays to be outputs
@@ -153,7 +153,8 @@ while not started:
 
  
             if ok and yeah >=10 and not started:
-            
+                
+           
                 #Turn on the precharge relays
                 ground_relay.value      = True
                 precharge_relay.value   = True
@@ -165,7 +166,7 @@ while not started:
                 #now turn on shane, i mean the relay <------<         # | 
                                                                # | 
                 #wait again 1sec for saftey                  |   
-                pause_but_blink(1.0)                       # |    
+                pause_but_blink(.50)                       # |    
                 #LOL-----------------------------------------^
                 precharge_relay.value  = False
                     
@@ -174,7 +175,7 @@ while not started:
                 #Set the bool to TRUE to show the car has been started 
                 started = True
                 yeah = 0
-                pause_but_blink(.2)
+                
                 
             
             

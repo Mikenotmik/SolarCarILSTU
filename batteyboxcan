@@ -192,6 +192,8 @@ while started:
                 motor_relay.value      = False
                 precharge_relay.value  = False
                 while True:
+                    pause_but_blink(.75)
+                    strobe.value = not strobe.value
                 
             continue
         

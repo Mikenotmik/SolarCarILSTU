@@ -15,7 +15,7 @@ lotemp  = 25
 hicell  = 3
 locell  = 3
 error   = "ISU"
-
+can_timeout = 2.0                                # Added 05/25: max time between can messages till car shuts down
 
 can_cs = digitalio.DigitalInOut(board.GP9)
 can_cs.switch_to_output()
@@ -180,17 +180,24 @@ while not started:
             
             
             
-            
+last_can_time = time.time()                                    # Added 05/25: Set the last can time a can message was received
 while started:
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
         message_count = listener.in_waiting()
         print("Message Count: " + str(message_count))
-
+        
         if message_count == 0:
+            if time.time() - last_can_time > can_timeout:        # Added 05/25: If we haven't receved any messages, stop the car
+                ground_relay.value     = False     
+                motor_relay.value      = False
+                precharge_relay.value  = False
+                while True:
+                
             continue
-
+        
         next_message = listener.receive()
         message_num = 0
+        last_can_time = time.time()                               # Added 05/25: Set the last can time a can message was received     
 
         while not next_message is None:
             # Handle message processing here

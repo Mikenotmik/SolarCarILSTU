@@ -197,9 +197,10 @@ while started:
         
         next_message = listener.receive()
         message_num = 0
-        last_can_time = time.time()                               # Added 05/25: Set the last can time a can message was received     
+  
 
         while not next_message is None:
+            last_can_time = time.time()                               # Added 05/25: Set the last can time a can message was received   
             # Handle message processing here
 
             # Read another message

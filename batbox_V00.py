@@ -31,8 +31,11 @@ import busio
 import struct
 
 '''Global Variables'''
-can_timeout = 2.0                                # max time between can messages till car shuts down
+can_timeout = 2.0                                # max time between can messages till car shuts down in sec
+precharge_time = 5.0                             # Amount of time for prechage in sec
+boot_time   = 1.0                                # Amount of time to wait after boot to start car in sec
 started     = False                              # State of the car i.e. True for on False for off
+precharge   = False                              # Pre Charge status: True for enabled: false for not
 vibes_ok    = True                               # State of errors: True for good False for BAD
 vibe_num    = 0                                  # Init the error code
 ISU         = 'Winners'                          # duh
@@ -151,12 +154,6 @@ def start_car():
     I did not touch, you probably shouldn't either
 
     '''
-    #Turn on the precharge relays
-    ground_relay.value      = True
-    precharge_relay.value   = True
-        
-    #Wait 5sec for precharge
-    pause_but_blink(5.0)
     motor_relay.value = True
                                                 
     #now turn on shane, i mean the relay <------<| 
@@ -169,6 +166,19 @@ def start_car():
         
         
     #Set the bool to TRUE to show the car has been started 
+    return True
+
+def pre_charge():
+    ''' 
+    starts precharge by enabling the ground and precharge relays
+
+    Inputs:     None
+    Returns:    True
+    '''
+    #Turn on the precharge relays
+    ground_relay.value      = True
+    precharge_relay.value   = True
+
     return True
 
 def stop_car(exit_code):
@@ -206,7 +216,7 @@ def print_spam():
 
 
 last_can_time = time.time()                                     # init timer for the last can time a can message was received
-boot_time     = time.time()                                     # get the current time
+boot_clock    = time.time()                                     # get the current time
 
 '''This loop controls the car'''
 while ISU == 'Winners':
@@ -233,5 +243,8 @@ while ISU == 'Winners':
             last_can_time = time.time()                          # Reset the CAN timeout
             next_message  = listener.receive()                   # read the next message 
         
-            if vibes_ok and (time.time()-boot_time > 3.0) and not started: # wait for 3 seconds after boot to start
-                started = start_car()                                      # Start the car mike
+            if vibes_ok and (time.time()-boot_clock > boot_time) and not precharge:                 # wait for 1 seconds after boot to start
+                precharge = pre_charge()                                                            # start precharge
+                precharge_clock = time.time()                                                       # start the clock
+            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started:         # wait for 1 seconds after boot to start
+                started = start_car()                                                               # Start car

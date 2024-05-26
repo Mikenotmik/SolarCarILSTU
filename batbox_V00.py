@@ -34,6 +34,7 @@ import struct
 can_timeout = 2.0                                # max time between can messages till car shuts down
 started     = False                              # State of the car i.e. True for on False for off
 vibes_ok    = True                               # State of errors: True for good False for BAD
+vibe_num    = 0                                  # Init the error code
 ISU         = 'Winners'                          # duh
 car_info = {                                     # Holder for all of the useful stuff
 'HiCellV':   3.0,
@@ -199,9 +200,9 @@ def print_spam():
     Returns None
 
     prints 
-    ['HiCellV','LowCellV','AvgCellV','HiCellVid','LowCellVid','HiCellT','LowCellT','AvgCellT','PackI','PackV',started,precharge,ground,motor relay, can message count]
+    ['HiCellV','LowCellV','AvgCellV','HiCellVid','LowCellVid','HiCellT','LowCellT','AvgCellT','PackI','PackV',started,precharge,ground,motor relay, can message count,error code]
     '''
-    print(list(car_info.values())+[started,precharge_relay.value,ground_relay.value,motor_relay.value,message_count])
+    print(list(car_info.values())+[started,precharge_relay.value,ground_relay.value,motor_relay.value,message_count,vibe_num])
 
 
 last_can_time = time.time()                                     # init timer for the last can time a can message was received

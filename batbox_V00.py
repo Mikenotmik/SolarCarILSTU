@@ -35,7 +35,7 @@ can_timeout = 2.0                                # max time between can messages
 started     = False                              # State of the car i.e. True for on False for off
 vibes_ok    = True                               # State of errors: True for good False for BAD
 ISU         = 'Winners'                          # duh
-car_info = {                                     # Holder for all of the usefull stuff
+car_info = {                                     # Holder for all of the useful stuff
 'HiCellV':   3.0,
 'LowCellV':  3.0,
 'AvgCellV':  3.0,
@@ -75,7 +75,7 @@ strobe.direction                   = digitalio.Direction.OUTPUT
 '''Usefull functions'''                            
 def read_message(message):
     '''
-    Function that unpacks a can message
+    A function that unpacks a can message
 
     Input:   canio message object
     Returns: None
@@ -88,7 +88,7 @@ def read_message(message):
     '''
 
 
-    # Check the id to properly unpack it
+    # Check the id to unpack it properly
     if next_message.id == 0x6b0:
         holder = struct.unpack('>hhhh',next_message.data)
         car_info['PackI'] = holder[1]*.1
@@ -118,15 +118,15 @@ def pause_but_blink(sleep_time:float):
 
 def check_vibes():
     '''
-    Check the status of the car to see if we everything is within opperating conditions
+    Check the status of the car to see if everything is within operating conditions.
 
     Input:    None
     Returns: (flag,error_code)
 
-    flag is True for eveything good
-    flag is Fals for eveything bad
+    flag is True for everything good
+    flag is Fals for everything bad
 
-    error codes are at the top of doccument
+    error codes are at the top of document
 
     '''
     if car_info['PackV']   >= 126  or car_info['PackV']    <=80:
@@ -187,7 +187,7 @@ def stop_car(exit_code):
         for i in range(exit_code):      # Sets the number of blinks
             time.sleep(0.5)
             led.value    = not led.value        # Blink board led
-            strobe.value = not strobe.value     # Blink strobe too
+            strobe.value = not strobe.value     # Blink strobes too
         time.sleep(1.0)                         # Pause so we can read the blinkn code
         print_spam()                            # Print out to terminal the car status
 
@@ -213,18 +213,18 @@ while ISU == 'Winners':
         message_count = listener.in_waiting()                    # Check for messages
 
         if message_count == 0:
-            if time.time() - last_can_time > can_timeout:        # If we haven't receved any messages, stop the car
+            if time.time() - last_can_time > can_timeout:        # If we haven't received any messages, stop the car
                 stop_car(5)                                      
             continue                                             # bypass what's below -> keep loop'n till we get a message
 
-        next_message = listener.receive()                        # Load the next message in queue
+        next_message = listener.receive()                        # Load the next message in the queue
         while not next_message is None:                          # Loop through the messages 
             
             message_count = listener.in_waiting()                # See how many messages we have
             read_message(next_message)                           # Read message
             print_spam()                                         # Print the car variables
         
-            vibes_ok, vibe_num  =  check_vibes()                 # Check for any trouble (Warning, this function doesn't check on jim)
+            vibes_ok, vibe_num  =  check_vibes()                 # Check for any trouble (Warning, this function doesn't check on Jim)
 
             if not vibes_ok:                                     # If we have a problem
                 stop_car(vibe_num)                               # Stop the car
@@ -232,5 +232,5 @@ while ISU == 'Winners':
             last_can_time = time.time()                          # Reset the CAN timeout
             next_message  = listener.receive()                   # read the next message 
         
-        if vibes_ok and (time.time()-boot_time > 3.0) and not started: # wait for 3 seconds after boot to start
-            started = start_car()                                      # Start the car mike
+            if vibes_ok and (time.time()-boot_time > 3.0) and not started: # wait for 3 seconds after boot to start
+                started = start_car()                                      # Start the car mike

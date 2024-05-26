@@ -217,7 +217,7 @@ def print_spam():
 
 last_can_time = time.time()                                     # init timer for the last can time a can message was received
 boot_clock    = time.time()                                     # get the current time
-
+precharge_clock = 0.0
 '''This loop controls the car'''
 while ISU == 'Winners':
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
@@ -246,5 +246,5 @@ while ISU == 'Winners':
             if vibes_ok and (time.time()-boot_clock > boot_time) and not precharge:                 # wait for 1 seconds after boot to start
                 precharge = pre_charge()                                                            # start precharge
                 precharge_clock = time.time()                                                       # start the clock
-            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started:         # wait for 1 seconds after boot to start
+            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started and precharge: # wait for 1 seconds after boot to start
                 started = start_car()                                                               # Start car

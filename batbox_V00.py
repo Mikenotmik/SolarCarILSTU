@@ -31,9 +31,10 @@ import busio
 import struct
 
 '''Global Variables'''
+
 can_timeout = 2.0                                # max time between can messages till car shuts down in sec
-precharge_time = 5.0                             # Amount of time for prechage in sec
-boot_time   = 1.0                                # Amount of time to wait after boot to start car in sec
+precharge_time = 3.0                             # Amount of time for prechage in sec
+boot_time   = .20                                # Amount of time to wait after boot to start car in sec
 started     = False                              # State of the car i.e. True for on False for off
 precharge   = False                              # Pre Charge status: True for enabled: false for not
 vibes_ok    = True                               # State of errors: True for good False for BAD
@@ -159,7 +160,7 @@ def start_car():
     #now turn on shane, i mean the relay <------<| 
     #                                            | 
     #wait again 1sec for saftey                  |   
-    pause_but_blink(.50)                       # |    
+    time.sleep(.2)                       # |    
     #LOL-----------------------------------------^
     precharge_relay.value  = False
         
@@ -217,7 +218,7 @@ def print_spam():
 
 last_can_time = time.time()                                     # init timer for the last can time a can message was received
 boot_clock    = time.time()                                     # get the current time
-precharge_clock = 0.0
+precharge_clock=1000000000
 '''This loop controls the car'''
 while ISU == 'Winners':
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
@@ -246,5 +247,6 @@ while ISU == 'Winners':
             if vibes_ok and (time.time()-boot_clock > boot_time) and not precharge:                 # wait for 1 seconds after boot to start
                 precharge = pre_charge()                                                            # start precharge
                 precharge_clock = time.time()                                                       # start the clock
-            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started and precharge: # wait for 1 seconds after boot to start
+            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started and precharge:         # wait for 1 seconds after boot to start
                 started = start_car()                                                               # Start car
+

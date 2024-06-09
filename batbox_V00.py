@@ -136,11 +136,11 @@ def check_vibes():
     '''
     if car_info['PackV']   >= 126  or car_info['PackV']    <=80:
         return False, 1
-    if car_info['HiCellV'] >= 4.19 or car_info['LowCellV'] <= 2.6:
+    if car_info['HiCellV'] >= 4.199 or car_info['LowCellV'] <= 2.6:
         return False, 2
-    if car_info['PackI']   <= -50  or car_info['PackI']    >= 60:
+    if car_info['PackI']   <= -60  or car_info['PackI']    >= 60:
         return False, 3
-    if car_info['HiCellT'] >= 60   or car_info['LowCellT'] <= 10:
+    if car_info['HiCellT'] >= 45   or car_info['LowCellT'] <= 10:
         return False, 4
 
     return True , 0
@@ -197,7 +197,7 @@ def stop_car(exit_code):
         motor_relay.value      = False      # Turn off motor relay
         precharge_relay.value  = False      # Turn off precharge relay
 
-        for i in range(exit_code):      # Sets the number of blinks
+        for i in range(exit_code*2):      # Sets the number of blinks
             time.sleep(0.5)
             led.value    = not led.value        # Blink board led
             strobe.value = not strobe.value     # Blink strobes too

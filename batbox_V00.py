@@ -119,7 +119,7 @@ def pause_but_blink(sleep_time:float):
     sTime = time.time()
     while time.time() - sTime <= sleep_time: 
         led.value = not led.value
-        time.sleep(0.2)
+        time.sleep(0.1)
 
 def check_vibes():
     '''
@@ -190,11 +190,12 @@ def stop_car(exit_code):
     Returns: NEVER, YOU NEVER LEAVE
 
     '''
-    ground_relay.value     = False      # Turn off ground relay
-    motor_relay.value      = False      # Turn off motor relay
-    precharge_relay.value  = False      # Turn off precharge relay
+    
 
     while True:                         # Never leave 
+        ground_relay.value     = False      # Turn off ground relay
+        motor_relay.value      = False      # Turn off motor relay
+        precharge_relay.value  = False      # Turn off precharge relay
 
         for i in range(exit_code):      # Sets the number of blinks
             time.sleep(0.5)

@@ -18,7 +18,8 @@ __________________________________________________
 3               Pack Current is outside range
 4               A Battery Cell Temp is out of spec
 5               CAN Timeout
-
+6 				Car Off
+7				Kil switch
 '''
 
 import board
@@ -64,19 +65,33 @@ mcp = CAN(spi, can_cs, baudrate = 500000, crystal_freq = 16000000, silent = Fals
 led = digitalio.DigitalInOut(board.GP18)            
 led.direction = digitalio.Direction.OUTPUT
 
+
 '''Setup Relays and Strobe'''
 motor_relay      = digitalio.DigitalInOut(board.GP20)
 ground_relay     = digitalio.DigitalInOut(board.GP19)
 precharge_relay  = digitalio.DigitalInOut(board.GP10)
-strobe           = digitalio.DigitalInOut(board.GP25)
+strobe           = digitalio.DigitalInOut(board.GP28)
+array            = digitalio.DigitalInOut(board.GP27)
 
 motor_relay.direction              = digitalio.Direction.OUTPUT
 ground_relay.direction             = digitalio.Direction.OUTPUT
 precharge_relay.direction          = digitalio.Direction.OUTPUT
 strobe.direction                   = digitalio.Direction.OUTPUT
+array.direction                    = digitalio.Direction.OUTPUT
+
+'''Other inputs'''
+kill_switch      = digitalio.DigitalInOut(board.GP21)
+discharge_enable = digitalio.DigitalInOut(board.GP7)
+charge_enable    = digitalio.DigitalInOut(board.GP23)
+multi_input      = digitalio.DigitalInOut(board.GP22)
+car_go           = digitalio.DigitalInOut(board.GP6)
 
 
-
+kill_switch.switch_to_input(pull = digitalio.Pull.DOWN)
+discharge_enable.switch_to_input(pull = digitalio.Pull.DOWN)
+charge_enable.switch_to_input(pull = digitalio.Pull.DOWN)
+car_go.switch_to_input(pull = digitalio.Pull.DOWN)  
+        
 '''Usefull functions'''                            
 def read_message(message):
     '''
@@ -119,7 +134,7 @@ def pause_but_blink(sleep_time:float):
     sTime = time.time()
     while time.time() - sTime <= sleep_time: 
         led.value = not led.value
-        time.sleep(0.1)
+        time.sleep(0.2)
 
 def check_vibes():
     '''
@@ -136,13 +151,16 @@ def check_vibes():
     '''
     if car_info['PackV']   >= 126  or car_info['PackV']    <=80:
         return False, 1
-    if car_info['HiCellV'] >= 4.199 or car_info['LowCellV'] <= 2.6:
+    if car_info['HiCellV'] >= 4.19 or car_info['LowCellV'] <= 2.6:
         return False, 2
-    if car_info['PackI']   <= -60  or car_info['PackI']    >= 60:
+    if car_info['PackI']   <= -50  or car_info['PackI']    >= 60:
         return False, 3
-    if car_info['HiCellT'] >= 45   or car_info['LowCellT'] <= 10:
+    if car_info['HiCellT'] >= 60   or car_info['LowCellT'] <= 10:
         return False, 4
-
+    if car_go.value and precharge:
+        return False, None
+    if kill_switch.value:
+        return False, None
     return True , 0
 
 def start_car():
@@ -160,7 +178,7 @@ def start_car():
     #now turn on shane, i mean the relay <------<| 
     #                                            | 
     #wait again 1sec for saftey                  |   
-    time.sleep(.2)                       # |    
+    time.sleep(.1)                             # |    
     #LOL-----------------------------------------^
     precharge_relay.value  = False
         
@@ -179,6 +197,7 @@ def pre_charge():
     #Turn on the precharge relays
     ground_relay.value      = True
     precharge_relay.value   = True
+    array.value             = True 
 
     return True
 
@@ -190,19 +209,21 @@ def stop_car(exit_code):
     Returns: NEVER, YOU NEVER LEAVE
 
     '''
-    
+  
 
-    while True:                         # Never leave 
+    while True:                         # Never leave
         ground_relay.value     = False      # Turn off ground relay
         motor_relay.value      = False      # Turn off motor relay
         precharge_relay.value  = False      # Turn off precharge relay
-
-        for i in range(exit_code*2):      # Sets the number of blinks
-            time.sleep(0.5)
-            led.value    = not led.value        # Blink board led
-            strobe.value = not strobe.value     # Blink strobes too
-        time.sleep(1.0)                         # Pause so we can read the blinkn code
+        array.value            = False      # Turn off array
         print_spam()                            # Print out to terminal the car status
+        if exit_code is not None:
+            for i in range(exit_code*2):      # Sets the number of blinks
+                time.sleep(0.5)
+                led.value    = not led.value        # Blink board led
+                strobe.value = not strobe.value     # Blink strobes too
+            time.sleep(.90)                         # Pause so we can read the blinkn code
+        
 
 def print_spam():
     '''
@@ -212,10 +233,10 @@ def print_spam():
     Returns None
 
     prints 
-    ['HiCellV','LowCellV','AvgCellV','HiCellVid','LowCellVid','HiCellT','LowCellT','AvgCellT','PackI','PackV',started,precharge,ground,motor relay, can message count,error code]
+    ['HiCellV','LowCellV','AvgCellV','HiCellVid','LowCellVid','HiCellT','LowCellT','AvgCellT','PackI','PackV',started,precharge,ground,motor relay, can message count,error code,kill switch value]
     '''
-    print(list(car_info.values())+[started,precharge_relay.value,ground_relay.value,motor_relay.value,message_count,vibe_num])
-
+    print(list(car_info.values())+[started,precharge_relay.value,ground_relay.value,motor_relay.value,message_count,vibe_num,kill_switch.value,discharge_enable.value,charge_enable.value,multi_input.value,car_go.value])
+    print(array.value)
 
 last_can_time = time.time()                                     # init timer for the last can time a can message was received
 boot_clock    = time.time()                                     # get the current time
@@ -223,19 +244,24 @@ precharge_clock=1000000000
 '''This loop controls the car'''
 while ISU == 'Winners':
     with mcp.listen(matches=[Match(0x6b0, mask=0xffc)], timeout=1.0) as listener:
+        vibes_ok, vibe_num  =  check_vibes()                     # Check for any trouble (Warning, this function doesn't check on Jim)
         message_count = listener.in_waiting()                    # Check for messages
-
+        print_spam()                                             # Print the car variables
         if message_count == 0:
             if time.time() - last_can_time > can_timeout:        # If we haven't received any messages, stop the car
-                stop_car(5)                                      
+                vibe_num = 5
+                stop_car(vibe_num)                                      
+            
+            led.value = not led.value
+            time.sleep(0.02)
             continue                                             # bypass what's below -> keep loop'n till we get a message
-
+            
         next_message = listener.receive()                        # Load the next message in the queue
         while not next_message is None:                          # Loop through the messages 
-            
+            print_spam()                                         # Print the car variables
             message_count = listener.in_waiting()                # See how many messages we have
             read_message(next_message)                           # Read message
-            print_spam()                                         # Print the car variables
+           
         
             vibes_ok, vibe_num  =  check_vibes()                 # Check for any trouble (Warning, this function doesn't check on Jim)
 
@@ -245,9 +271,9 @@ while ISU == 'Winners':
             last_can_time = time.time()                          # Reset the CAN timeout
             next_message  = listener.receive()                   # read the next message 
         
-            if vibes_ok and (time.time()-boot_clock > boot_time) and not precharge:                 # wait for 1 seconds after boot to start
-                precharge = pre_charge()                                                            # start precharge
-                precharge_clock = time.time()                                                       # start the clock
-            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started and precharge:         # wait for 1 seconds after boot to start
-                started = start_car()                                                               # Start car
+            if vibes_ok and (time.time()-boot_clock > boot_time) and not precharge and not car_go.value:            # wait for boot time seconds after boot to start
+                precharge = pre_charge()                                                            				# start precharge
+                precharge_clock = time.time()                                                       				# start the clock
+            if vibes_ok and (time.time()-precharge_clock > precharge_time) and not started and precharge:         	# wait for 1 seconds after boot to start
+                started = start_car()                                                               				# Start car
 

@@ -68,7 +68,7 @@ while True:
     pot_sum += potPercent
     sample_count += 1
     
-    if time.monotonic()-start_time >= 0.15:
+    if time.monotonic()-start_time >= 0.1:
         this =pot_sum/sample_count
         #model function to describe acceleration
         thrust = (pow(this,1.75))*.9

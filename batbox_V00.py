@@ -92,7 +92,15 @@ discharge_enable.switch_to_input(pull = digitalio.Pull.DOWN)
 charge_enable.switch_to_input(pull = digitalio.Pull.DOWN)
 car_go.switch_to_input(pull = digitalio.Pull.DOWN)  
         
-'''Usefull functions'''                            
+'''Usefull functions'''  
+
+
+#make sure everything starts in the off position
+motor_relay.value()     = False
+ground_relay.value()    = False
+precharge_relay.value() = False
+
+
 def read_message(message):
     '''
     A function that unpacks a can message
